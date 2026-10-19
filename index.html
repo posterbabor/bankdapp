@@ -1,0 +1,108 @@
+
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bank DApp</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <main class="app-shell">
+        <header class="topbar">
+            <a class="brand" href="#" aria-label="Bright Bank home">
+                <span class="brand-mark" aria-hidden="true">✦</span>
+                <span>bright<span class="brand-light">bank</span></span>
+            </a>
+            <div class="network-pill"><span class="status-dot"></span> Ethereum network</div>
+        </header>
+
+        <section class="welcome-row" aria-labelledby="page-title">
+            <div>
+                <p class="eyebrow">DECENTRALIZED BANKING</p>
+                <h1 id="page-title">จัดการเงินของคุณ<br><span>ได้ง่ายกว่าที่เคย</span></h1>
+                <p class="intro">ระบบธนาคาร Smart Contract ที่ให้คุณควบคุมสินทรัพย์ได้ด้วยตัวเอง</p>
+            </div>
+            <div class="student-chip">
+                <span class="avatar" aria-hidden="true">✦</span>
+                <span><strong>โปรเจกต์นักศึกษา</strong><small>66073498 · ฆนาการ ศรีเพ็ญ</small></span>
+            </div>
+        </section>
+
+        <section class="account-grid" aria-label="บัญชีธนาคาร">
+            <article class="balance-card">
+                <div class="card-orb card-orb-one"></div>
+                <div class="card-orb card-orb-two"></div>
+                <div class="balance-topline">
+                    <span class="balance-label"><span class="mini-icon">◈</span> ยอดเงินในบัญชี</span>
+                    <span class="secure-label">● SECURE</span>
+                </div>
+                <p class="balance-caption">ยอดคงเหลือปัจจุบัน</p>
+                <h2 id="balance">0 <span>ETH</span></h2>
+                <div class="balance-footer">
+                    <span id="wallet" class="wallet-status">ยังไม่ได้เชื่อมต่อกระเป๋า</span>
+                    <button id="checkBtn" class="refresh-btn" type="button" aria-label="ตรวจสอบยอดเงิน">↻</button>
+                </div>
+            </article>
+
+            <aside class="connect-card">
+                <div class="connect-icon" aria-hidden="true">⌘</div>
+                <p class="eyebrow">เริ่มต้นใช้งาน</p>
+                <h2>เชื่อมต่อกระเป๋า</h2>
+                <p class="connect-copy">เชื่อมต่อ MetaMask เพื่อเข้าถึงบัญชีและทำรายการของคุณ</p>
+                <button id="connectBtn" class="connect-btn" type="button">
+                    <span>Connect MetaMask</span><span aria-hidden="true">↗</span>
+                </button>
+                <p class="wallet-note"><span class="status-dot"></span> กระเป๋าของคุณปลอดภัยเสมอ</p>
+                <div class="contract-settings">
+                    <label class="input-label" for="contractAddress">ที่อยู่ Smart Contract</label>
+                    <input id="contractAddress" class="contract-input" type="text" inputmode="text" autocomplete="off" spellcheck="false" placeholder="0x...">
+                    <button id="saveContractBtn" class="save-contract-btn" type="button">บันทึกที่อยู่ Contract</button>
+                    <small class="contract-hint">บันทึกไว้ในเบราว์เซอร์นี้ เพื่อใช้งานครั้งถัดไป</small>
+                </div>
+            </aside>
+        </section>
+
+        <section class="actions-section" aria-labelledby="actions-title">
+            <div class="section-heading">
+                <div><p class="eyebrow">YOUR MONEY, YOUR RULES</p><h2 id="actions-title">ทำรายการ</h2></div>
+                <span class="section-hint">จัดการ ETH ของคุณได้ในที่เดียว</span>
+            </div>
+            <div class="action-grid">
+                <article class="action-card deposit-card">
+                    <div class="action-heading">
+                        <span class="action-icon deposit-icon" aria-hidden="true">↓</span>
+                        <span class="action-tag">ADD FUNDS</span>
+                    </div>
+                    <h3>ฝากเงิน</h3>
+                    <p>เพิ่ม ETH เข้าสู่บัญชี Smart Contract ของคุณ</p>
+                    <label class="input-label" for="depositAmount">จำนวนที่ต้องการฝาก</label>
+                    <div class="input-wrap"><input type="number" id="depositAmount" placeholder="0.00" min="0" step="any"><span>ETH</span></div>
+                    <button id="depositBtn" class="action-btn deposit-btn" type="button">ฝากเงิน <span aria-hidden="true">→</span></button>
+                </article>
+
+                <article class="action-card withdraw-card">
+                    <div class="action-heading">
+                        <span class="action-icon withdraw-icon" aria-hidden="true">↑</span>
+                        <span class="action-tag">TAKE OUT</span>
+                    </div>
+                    <h3>ถอนเงิน</h3>
+                    <p>โอน ETH จากบัญชีกลับไปยังกระเป๋าของคุณ</p>
+                    <label class="input-label" for="withdrawAmount">จำนวนที่ต้องการถอน</label>
+                    <div class="input-wrap"><input type="number" id="withdrawAmount" placeholder="0.00" min="0" step="any"><span>ETH</span></div>
+                    <button id="withdrawBtn" class="action-btn withdraw-btn" type="button">ถอนเงิน <span aria-hidden="true">→</span></button>
+                </article>
+            </div>
+        </section>
+
+        <footer class="page-footer">
+            <span><span class="footer-sparkle">✦</span> Banking, beautifully decentralized.</span>
+            <span>สร้างบน Ethereum <span class="footer-ethereum">◆</span></span>
+        </footer>
+        <p id="message" role="status" aria-live="polite"></p>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/ethers@6.13.4/dist/ethers.umd.min.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
