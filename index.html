@@ -55,6 +55,17 @@
                 </button>
                 <p class="wallet-note"><span class="status-dot"></span> กระเป๋าของคุณปลอดภัยเสมอ</p>
                 <div class="contract-settings">
+                    <label class="input-label" for="infuraNetwork">Infura RPC Network</label>
+                    <select id="infuraNetwork" class="contract-input">
+                        <option value="sepolia">Ethereum Sepolia (Testnet)</option>
+                        <option value="mainnet">Ethereum Mainnet</option>
+                        <option value="custom">กำหนด URL เอง…</option>
+                    </select>
+                    <input id="infuraUrl" class="contract-input" type="text" inputmode="text" autocomplete="off" spellcheck="false" placeholder="https://sepolia.infura.io/v3/YOUR_PROJECT_ID">
+                    <button id="saveInfuraBtn" class="save-contract-btn" type="button">เชื่อมต่อ Infura</button>
+                    <small class="contract-hint">ใช้ Infura เป็น RPC node สำหรับอ่านข้อมูลจาก blockchain (เช่น ยอดเงิน, network) ส่วนการฝาก/ถอนจะเซ็นผ่าน MetaMask</small>
+                </div>
+                <div class="contract-settings">
                     <label class="input-label" for="contractAddress">ที่อยู่ Smart Contract</label>
                     <input id="contractAddress" class="contract-input" type="text" inputmode="text" autocomplete="off" spellcheck="false" placeholder="0x...">
                     <button id="saveContractBtn" class="save-contract-btn" type="button">บันทึกที่อยู่ Contract</button>

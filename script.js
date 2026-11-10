@@ -1,4 +1,12 @@
 const CONTRACT_STORAGE_KEY = "brightbank.contractAddress";
+const INFURA_STORAGE_KEY = "brightbank.infuraUrl";
+
+// Infura API Key ของโปรเจกต์ ใช้เป็น RPC node สำหรับอ่านข้อมูลจาก blockchain
+const INFURA_API_KEY = "d4637a44ac01421a8049fb62944fb5b5";
+const INFURA_NETWORK_URLS = {
+	mainnet: `https://mainnet.infura.io/v3/${INFURA_API_KEY}`,
+	sepolia: `https://sepolia.infura.io/v3/${INFURA_API_KEY}`
+};
 
 const BANK_ABI = [
 	"function deposit() payable",
@@ -21,16 +29,28 @@ const elements = {
 	message: document.getElementById("message"),
 	network: document.querySelector(".network-pill"),
 	contractAddress: document.getElementById("contractAddress"),
-	saveContract: document.getElementById("saveContractBtn")
+	saveContract: document.getElementById("saveContractBtn"),
+	infuraUrl: document.getElementById("infuraUrl"),
+	infuraNetwork: document.getElementById("infuraNetwork"),
+	saveInfura: document.getElementById("saveInfuraBtn")
 };
 
-let provider;
+let provider;          // MetaMask provider (ใช้เซ็นธุรกรรม)
 let signer;
-let bank;
+let bank;              // Contract ที่ผูกกับ signer (เขียน/เซ็นธุรกรรม)
+let bankRead;          // Contract ที่ผูกกับ Infura RPC (อ่านข้อมูล)
+let infuraProvider;    // Infura JSON-RPC provider
 let connectedAddress;
 let contractAddress = localStorage.getItem(CONTRACT_STORAGE_KEY) || "";
+let infuraUrl = localStorage.getItem(INFURA_STORAGE_KEY) || "";
 
 elements.contractAddress.value = contractAddress;
+elements.infuraUrl.value = infuraUrl;
+
+// ใช้ Infura เป็น read provider ถ้าเชื่อมต่อไว้ ไม่งั้น fallback ไป MetaMask
+function readProvider() {
+	return infuraProvider || provider;
+}
 
 function showMessage(message, type = "info") {
 	elements.message.textContent = message;
@@ -44,37 +64,95 @@ function contractAddressIsConfigured() {
 async function createBankContract() {
 	if (!signer || !contractAddressIsConfigured()) return null;
 
-	const code = await provider.getCode(contractAddress);
+	const rpc = readProvider();
+	const code = await rpc.getCode(contractAddress);
 	if (code === "0x") {
 		throw new Error("ไม่พบ Smart Contract ที่ address นี้บนเครือข่ายปัจจุบัน กรุณาตรวจสอบ address และ network ใน MetaMask");
 	}
 
+	// ผูก contract กับ Infura (หรือ MetaMask ถ้าไม่มี Infura) สำหรับอ่านข้อมูล
+	bankRead = new ethers.Contract(contractAddress, BANK_ABI, rpc);
 	return new ethers.Contract(contractAddress, BANK_ABI, signer);
 }
 
+// สร้าง/รีเซ็ต contract สำหรับอ่านข้อมูลจาก Infura (ใช้เมื่อเปลี่ยน address โดยไม่ต้องรอ wallet)
+function refreshBankRead() {
+	if (infuraProvider && contractAddressIsConfigured()) {
+		bankRead = new ethers.Contract(contractAddress, BANK_ABI, infuraProvider);
+	} else if (!infuraProvider) {
+		bankRead = null;
+	}
+}
+
+// เชื่อมต่อ Infura RPC endpoint สำหรับอ่านข้อมูลจาก blockchain
+async function setupInfura(silent = false) {
+	const url = elements.infuraUrl.value.trim();
+	infuraProvider = null;
+	bankRead = null;
+
+	if (url && !/^https:\/\/.+/i.test(url)) {
+		if (!silent) showMessage("URL ของ Infura ไม่ถูกต้อง ต้องขึ้นต้นด้วย https:// เช่น https://sepolia.infura.io/v3/PROJECT_ID", "error");
+		updateNetworkPill();
+		return false;
+	}
+
+	if (url) {
+		try {
+			const rpc = new ethers.JsonRpcProvider(url);
+			await rpc.getNetwork(); // ทดสอบว่า endpoint ใช้งานได้จริง
+			infuraProvider = rpc;
+			refreshBankRead();
+			localStorage.setItem(INFURA_STORAGE_KEY, url);
+			if (!silent) showMessage("เชื่อมต่อ Infura RPC สำเร็จ ระบบจะอ่านข้อมูลผ่าน Infura", "success");
+		} catch (error) {
+			infuraProvider = null;
+			if (!silent) showMessage(`เชื่อมต่อ Infura ไม่สำเร็จ: ${error?.shortMessage || error?.message || "ตรวจสอบ URL และ Project ID"}`, "error");
+		}
+	} else if (!silent) {
+		localStorage.removeItem(INFURA_STORAGE_KEY);
+		showMessage("ล้างค่า Infura แล้ว ระบบจะกลับไปใช้ RPC ของ MetaMask", "info");
+	}
+
+	updateNetworkPill();
+	return Boolean(infuraProvider);
+}
+
 function updateActionAvailability() {
-	const ready = Boolean(bank && connectedAddress && contractAddressIsConfigured());
-	elements.check.disabled = !ready;
-	elements.deposit.disabled = !ready;
-	elements.withdraw.disabled = !ready;
+	// CheckBalance ใช้ได้เมื่อมี contract สำหรับอ่าน (ผ่าน Infura หรือ MetaMask)
+	elements.check.disabled = !(bankRead || (bank && connectedAddress));
+	// ฝาก/ถอนต้องเซ็นธุรกรรม จึงต้องเชื่อมต่อ MetaMask
+	elements.deposit.disabled = !bank;
+	elements.withdraw.disabled = !bank;
 }
 
 function shortAddress(address) {
 	return `${address.slice(0, 6)}…${address.slice(-4)}`;
 }
 
-async function updateNetwork(chainId) {
+async function updateNetworkPill() {
 	if (!elements.network) return;
 
-	let name = "เครือข่ายไม่ทราบชื่อ";
-	try {
-		const network = await provider.getNetwork();
-		name = network.name === "unknown" ? `Chain ${chainId}` : network.name;
-	} catch {
-		name = `Chain ${chainId}`;
+	let name = "ยังไม่ได้เชื่อมต่อ RPC";
+	let prefix = "";
+
+	if (infuraProvider) {
+		prefix = "Infura · ";
+		try {
+			const network = await infuraProvider.getNetwork();
+			name = network.name === "unknown" ? `Chain ${Number(network.chainId)}` : network.name;
+		} catch {
+			name = "เครือข่ายไม่ทราบชื่อ";
+		}
+	} else if (provider) {
+		try {
+			const network = await provider.getNetwork();
+			name = network.name === "unknown" ? `Chain ${Number(network.chainId)}` : network.name;
+		} catch {
+			name = "เครือข่ายไม่ทราบชื่อ";
+		}
 	}
 
-	elements.network.innerHTML = `<span class="status-dot"></span> ${name}`;
+	elements.network.innerHTML = `<span class="status-dot"></span> ${prefix}${name}`;
 }
 
 async function connectWallet() {
@@ -92,8 +170,7 @@ async function connectWallet() {
 
 		elements.wallet.textContent = `เชื่อมต่อแล้ว · ${shortAddress(connectedAddress)}`;
 		elements.connect.querySelector("span:first-child").textContent = "Wallet Connected";
-		const { chainId } = await provider.getNetwork();
-		await updateNetwork(chainId);
+		await updateNetworkPill();
 		updateActionAvailability();
 
 		if (bank) {
@@ -110,24 +187,27 @@ async function connectWallet() {
 }
 
 async function checkBalance() {
-	if (!bank) {
-		showMessage("กรุณาเชื่อมต่อกระเป๋าและกำหนดที่อยู่ Smart Contract ก่อน", "warning");
+	if (!bank && !bankRead) {
+		showMessage("กรุณาเชื่อมต่อ Infura/MetaMask และกำหนดที่อยู่ Smart Contract ก่อน", "warning");
 		return;
 	}
 
 	try {
-		const code = await provider.getCode(contractAddress);
+		// อ่านยอดเงินผ่าน Infura RPC (ถ้าเชื่อมต่อไว้) โดยไม่เปลือง RPC ของ MetaMask
+		const readContract = bankRead || bank;
+		const rpc = readProvider();
+		const code = await rpc.getCode(contractAddress);
 		if (code === "0x") {
-			throw new Error("ไม่พบ Smart Contract ที่ address นี้บนเครือข่ายปัจจุบัน กรุณาตรวจสอบ address และ network ใน MetaMask");
+			throw new Error("ไม่พบ Smart Contract ที่ address นี้บนเครือข่ายปัจจุบัน กรุณาตรวจสอบ address และ network");
 		}
 		let amount;
 		try {
 			// The assignment contract spells this function as checkBlance().
-			amount = await bank.checkBlance();
+			amount = await readContract.checkBlance();
 		} catch (misspelledFunctionError) {
 			try {
 				// Also support contracts that use the corrected spelling.
-				amount = await bank.checkBalance();
+				amount = await readContract.checkBalance();
 			} catch {
 				throw misspelledFunctionError;
 			}
@@ -208,11 +288,12 @@ async function saveContractAddress() {
 
 	contractAddress = ethers.getAddress(enteredAddress);
 	localStorage.setItem(CONTRACT_STORAGE_KEY, contractAddress);
+	refreshBankRead();
 	try {
 		bank = await createBankContract();
 		updateActionAvailability();
 		showMessage("บันทึกที่อยู่ Smart Contract แล้ว", "success");
-		if (bank) await checkBalance();
+		if (bank || bankRead) await checkBalance();
 	} catch (error) {
 		bank = null;
 		updateActionAvailability();
@@ -269,14 +350,35 @@ if (window.ethereum) {
 			provider = new ethers.BrowserProvider(window.ethereum);
 			signer = await provider.getSigner();
 			bank = await createBankContract();
-			const { chainId } = await provider.getNetwork();
-			await updateNetwork(chainId);
+			refreshBankRead();
+			await updateNetworkPill();
 			updateActionAvailability();
-			if (bank) await checkBalance();
+			if (bank || bankRead) await checkBalance();
 		} catch (error) {
 			showMessage(getReadableError(error), "error");
 		}
 	});
 }
 
+elements.saveInfura.addEventListener("click", () => setupInfura(false));
+elements.infuraUrl.addEventListener("keydown", (event) => {
+	if (event.key === "Enter") setupInfura(false);
+});
+elements.infuraNetwork.addEventListener("change", () => {
+	const network = elements.infuraNetwork.value;
+	if (network !== "custom") {
+		elements.infuraUrl.value = INFURA_NETWORK_URLS[network];
+		setupInfura(true);
+	} else {
+		elements.infuraUrl.value = "";
+		elements.infuraUrl.focus();
+	}
+});
+
 updateActionAvailability();
+
+// ตั้งค่าเริ่มต้น: ใช้ค่าที่บันทึกไว้ในเบราว์เซอร์ ถ้าไม่มีใช้ Sepolia ของ key โปรเจกต์
+const savedNetwork = Object.entries(INFURA_NETWORK_URLS).find(([, url]) => url === infuraUrl);
+elements.infuraNetwork.value = savedNetwork ? savedNetwork[0] : "sepolia";
+if (!infuraUrl) elements.infuraUrl.value = INFURA_NETWORK_URLS.sepolia;
+setupInfura(true);
